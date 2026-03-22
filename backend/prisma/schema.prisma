@@ -1,8 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// LTI ATS — aligned with ai-specs-main/ai-specs/specs/data-model.md
 
 generator client {
   provider = "prisma-client-js"
@@ -14,7 +10,181 @@ datasource db {
 }
 
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
+  id           Int      @id @default(autoincrement())
+  username     String   @unique @db.VarChar(100)
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Candidate {
+  id        Int     @id @default(autoincrement())
+  firstName String  @db.VarChar(100)
+  lastName  String  @db.VarChar(100)
+  email     String  @unique @db.VarChar(255)
+  phone     String? @db.VarChar(30)
+  address   String? @db.VarChar(100)
+
+  educations       Education[]
+  workExperiences  WorkExperience[]
+  resumes          Resume[]
+  applications     Application[]
+}
+
+model Education {
+  id           Int       @id @default(autoincrement())
+  institution  String    @db.VarChar(100)
+  title        String    @db.VarChar(250)
+  startDate    DateTime  @db.Date
+  endDate      DateTime? @db.Date
+  candidateId  Int
+  candidate    Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId])
+}
+
+model WorkExperience {
+  id          Int       @id @default(autoincrement())
+  company     String    @db.VarChar(100)
+  position    String    @db.VarChar(100)
+  description String?   @db.VarChar(200)
+  startDate   DateTime  @db.Date
+  endDate     DateTime? @db.Date
+  candidateId Int
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId])
+}
+
+model Resume {
+  id          Int      @id @default(autoincrement())
+  filePath    String   @db.VarChar(500)
+  fileType    String   @db.VarChar(50)
+  uploadDate  DateTime @default(now())
+  candidateId Int
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId])
+}
+
+model Company {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  employees Employee[]
+  positions Position[]
+}
+
+model Employee {
+  id        Int         @id @default(autoincrement())
+  name      String
+  email     String      @unique
+  role      String
+  isActive  Boolean     @default(true)
+  companyId Int
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  interviews Interview[]
+
+  @@index([companyId])
+}
+
+model InterviewType {
+  id          Int             @id @default(autoincrement())
+  name        String          @unique
+  description String?
+  steps       InterviewStep[]
+}
+
+model InterviewFlow {
+  id          Int             @id @default(autoincrement())
+  description String?
+  steps       InterviewStep[]
+  positions   Position[]
+}
+
+model InterviewStep {
+  id              Int           @id @default(autoincrement())
+  name            String
+  orderIndex      Int
+  interviewFlowId Int
+  interviewTypeId Int
+  interviewFlow   InterviewFlow @relation(fields: [interviewFlowId], references: [id], onDelete: Cascade)
+  interviewType   InterviewType @relation(fields: [interviewTypeId], references: [id], onDelete: Restrict)
+  applications    Application[]
+  interviews      Interview[]
+
+  @@unique([interviewFlowId, orderIndex])
+  @@index([interviewFlowId])
+  @@index([interviewTypeId])
+}
+
+enum PositionStatus {
+  Open
+  Contratado
+  Cerrado
+  Borrador
+}
+
+model Position {
+  id                  Int            @id @default(autoincrement())
+  companyId           Int
+  interviewFlowId     Int
+  title               String         @db.VarChar(100)
+  description         String
+  status              PositionStatus @default(Borrador)
+  isVisible           Boolean        @default(false)
+  location            String
+  jobDescription      String
+  requirements        String?
+  responsibilities    String?
+  salaryMin           Float?
+  salaryMax           Float?
+  employmentType      String?
+  benefits            String?
+  companyDescription  String?
+  applicationDeadline DateTime?
+  contactInfo         String?
+
+  company   Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  interviewFlow InterviewFlow @relation(fields: [interviewFlowId], references: [id], onDelete: Restrict)
+  applications Application[]
+
+  @@index([companyId])
+  @@index([interviewFlowId])
+}
+
+model Application {
+  id                 Int       @id @default(autoincrement())
+  applicationDate    DateTime  @default(now())
+  notes              String?
+  positionId         Int
+  candidateId        Int
+  interviewStepId    Int?
+
+  position      Position      @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  candidate     Candidate     @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  interviewStep InterviewStep? @relation(fields: [interviewStepId], references: [id], onDelete: SetNull)
+  interviews    Interview[]
+
+  @@index([positionId])
+  @@index([candidateId])
+  @@index([interviewStepId])
+}
+
+model Interview {
+  id              Int       @id @default(autoincrement())
+  interviewDate DateTime
+  result          String?
+  score           Float?
+  notes           String?
+  applicationId   Int
+  interviewStepId Int
+  employeeId      Int
+
+  application   Application   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  interviewStep InterviewStep @relation(fields: [interviewStepId], references: [id], onDelete: Restrict)
+  employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId])
+  @@index([interviewStepId])
+  @@index([employeeId])
 }

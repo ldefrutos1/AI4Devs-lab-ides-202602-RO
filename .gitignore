@@ -27,3 +27,6 @@ yarn-error.log*
 
 # .env
 
+# Uploaded CVs (local storage only — never commit)
+/cv/
+
